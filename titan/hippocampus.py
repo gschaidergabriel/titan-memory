@@ -76,18 +76,87 @@ QUM_INPUT_DIM = (_QUM_TEXT_FEATURES + _QUM_CONTEXT_FEATURES +
 
 # Temporal words (English + German)
 _TEMPORAL_WORDS = frozenset({
-    "gestern", "vorgestern", "letzte", "letzten", "letzter", "letztes",
-    "woche", "monat", "jahr", "heute", "morgen", "kuerzlich", "neulich",
-    "damals", "frueher", "yesterday", "last", "week", "month", "ago",
-    "recently", "remember", "erinnerst", "weisst", "noch",
+    # English
+    "yesterday", "today", "tomorrow", "last", "next", "previous", "recent",
+    "recently", "ago", "before", "after", "earlier", "later", "week", "month",
+    "year", "morning", "evening", "night", "remember", "when", "since", "until",
+    # German
+    "gestern", "vorgestern", "heute", "morgen", "übermorgen",
+    "letzte", "letzten", "letzter", "letztes", "nächste", "nächsten",
+    "woche", "monat", "jahr", "kürzlich", "neulich", "damals", "früher",
+    "erinnerst", "weißt", "noch", "vorher", "nachher", "seit", "bis",
+    # Spanish
+    "ayer", "hoy", "mañana", "anteayer", "pasado", "último", "última",
+    "semana", "mes", "año", "reciente", "recientemente", "antes", "después",
+    "cuando", "desde", "hasta", "recuerda", "acuerda",
+    # French
+    "hier", "aujourd", "demain", "avant-hier", "dernier", "dernière",
+    "semaine", "mois", "année", "récemment", "avant", "après",
+    "quand", "depuis", "jusqu", "souviens", "rappelle",
+    # Portuguese
+    "ontem", "anteontem", "amanhã", "passado", "passada",
+    "semana", "mês", "ano", "recentemente", "antes", "depois",
+    "quando", "desde", "até", "lembra", "lembras",
+    # Mandarin (pinyin + chars)
+    "zuotian", "jintian", "mingtian", "shangyige", "xiayige",
+    "xingqi", "yue", "nian", "zuijin", "yiqian", "yihou",
+    "昨天", "今天", "明天", "上个", "下个", "星期", "月", "年",
+    "最近", "以前", "以后", "记得", "什么时候",
+    # Hindi (romanized + Devanagari)
+    "kal", "aaj", "parson", "pichla", "agla", "hafta", "mahina", "saal",
+    "haal", "pehle", "baad", "jab", "tab", "yaad",
+    "कल", "आज", "परसों", "पिछला", "अगला", "हफ्ता", "महीना", "साल",
+    "पहले", "बाद", "जब", "तब", "याद",
+    # Arabic (romanized + script)
+    "ams", "alyawm", "ghadan", "almadi", "alqadim",
+    "usbu", "shahr", "sana", "muakharan", "qabl", "baad",
+    "أمس", "اليوم", "غداً", "الماضي", "القادم",
+    "أسبوع", "شهر", "سنة", "مؤخراً", "قبل", "بعد", "متى", "تذكر",
 })
 
 # Emotion words
 _EMOTION_WORDS = frozenset({
-    "freude", "traurig", "wuetend", "angst", "liebe", "hass", "gluecklich",
-    "trauer", "schmerz", "lust", "happy", "sad", "angry", "fear", "love",
-    "hate", "pain", "joy", "excited", "nervous", "proud", "ashamed",
-    "aufgeregt", "stolz", "einsam", "lonely",
+    # English
+    "happy", "sad", "angry", "afraid", "fear", "love", "hate", "joy",
+    "pain", "excited", "nervous", "proud", "ashamed", "lonely", "anxious",
+    "grateful", "frustrated", "hopeful", "hopeless", "calm", "worried",
+    "disappointed", "surprised", "confused", "jealous", "guilty",
+    # German
+    "freude", "traurig", "wütend", "angst", "liebe", "hass", "glücklich",
+    "trauer", "schmerz", "lust", "aufgeregt", "stolz", "einsam",
+    "nervös", "dankbar", "frustriert", "hoffnungsvoll", "enttäuscht",
+    "überrascht", "verwirrt", "eifersüchtig", "schuldig", "besorgt",
+    # Spanish
+    "feliz", "triste", "enojado", "miedo", "amor", "odio", "alegría",
+    "dolor", "emocionado", "nervioso", "orgulloso", "avergonzado",
+    "solo", "ansioso", "agradecido", "frustrado", "preocupado",
+    "decepcionado", "sorprendido", "confundido", "celoso", "culpable",
+    # French
+    "heureux", "heureuse", "triste", "fâché", "peur", "amour", "haine",
+    "joie", "douleur", "excité", "nerveux", "fier", "honteux",
+    "seul", "anxieux", "reconnaissant", "frustré", "inquiet",
+    "déçu", "surpris", "confus", "jaloux", "coupable",
+    # Portuguese
+    "feliz", "triste", "zangado", "medo", "amor", "ódio", "alegria",
+    "dor", "animado", "nervoso", "orgulhoso", "envergonhado",
+    "sozinho", "ansioso", "grato", "frustrado", "preocupado",
+    "decepcionado", "surpreso", "confuso", "ciumento", "culpado",
+    # Mandarin (pinyin + chars)
+    "gaoxing", "shangxin", "shengqi", "haipa", "ai", "hen",
+    "kuaile", "tongku", "jidong", "jinzhang", "zihao", "gudu",
+    "高兴", "伤心", "生气", "害怕", "爱", "恨",
+    "快乐", "痛苦", "激动", "紧张", "自豪", "孤独",
+    "担心", "失望", "惊讶", "困惑", "嫉妒",
+    # Hindi (romanized + Devanagari)
+    "khush", "udaas", "gussa", "dar", "pyaar", "nafrat",
+    "khushi", "dard", "pareshan", "akela",
+    "खुश", "उदास", "गुस्सा", "डर", "प्यार", "नफरत",
+    "खुशी", "दर्द", "परेशान", "अकेला", "चिंतित",
+    # Arabic (romanized + script)
+    "saeid", "hazin", "ghadib", "khawf", "hubb", "karahiya",
+    "farah", "alam", "mutahamis", "fakhur", "wahid",
+    "سعيد", "حزين", "غاضب", "خوف", "حب", "كراهية",
+    "فرح", "ألم", "متحمس", "فخور", "وحيد", "قلق",
 })
 
 
@@ -326,7 +395,16 @@ def extract_qum_features(query: str, context: Optional[Dict] = None) -> np.ndarr
     temporal_count = sum(1 for w in words if w.lower() in _TEMPORAL_WORDS)
     emotion_count = sum(1 for w in words if w.lower() in _EMOTION_WORDS)
     specificity = min(1.0, entity_count / max(n_words, 1) * 3)
-    negation_count = sum(1 for w in words if w.lower() in ("nicht", "kein", "keine", "never", "not", "no"))
+    negation_count = sum(1 for w in words if w.lower() in (
+        "not", "no", "never", "neither", "nor", "nobody", "nothing",  # EN
+        "nicht", "kein", "keine", "keinem", "keinen", "keiner", "nie", "niemals",  # DE
+        "no", "ni", "nunca", "jamás", "nadie", "nada", "ninguno", "tampoco",  # ES
+        "ne", "pas", "jamais", "rien", "personne", "aucun", "aucune",  # FR
+        "não", "nem", "nunca", "jamais", "ninguém", "nada", "nenhum",  # PT
+        "bu", "mei", "bie", "不", "没", "别", "无",  # ZH
+        "nahi", "nahin", "mat", "na", "नहीं", "मत", "न",  # HI
+        "la", "lam", "lan", "laysa", "لا", "لم", "لن", "ليس",  # AR
+    ))
     pronoun_count = sum(1 for w in words if w.lower() in ("ich", "du", "er", "sie", "wir", "i", "you", "we", "he", "she"))
 
     text_feats = [

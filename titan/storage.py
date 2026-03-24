@@ -384,8 +384,10 @@ class SQLiteStore:
         except Exception as e:
             LOG.error(f"FTS index failed: {e}")
 
-    # Stop words filtered from FTS queries to prevent every item matching
+    # Stop words for the 7 most spoken languages + German.
+    # Filtered from FTS queries to prevent every item matching.
     _STOP_WORDS = frozenset({
+        # ── English ──
         "a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
         "have", "has", "had", "do", "does", "did", "will", "would", "could",
         "should", "may", "might", "shall", "can", "need", "dare", "ought",
@@ -400,11 +402,87 @@ class SQLiteStore:
         "i", "me", "my", "we", "our", "you", "your", "he", "him", "his",
         "she", "her", "it", "its", "they", "them", "their",
         "there", "here", "then", "now", "also", "still",
-        # German stop words
-        "der", "die", "das", "ein", "eine", "und", "ist", "sind", "war",
-        "hat", "haben", "wird", "werden", "kann", "mit", "auf", "für",
-        "von", "zu", "den", "dem", "des", "im", "am", "um", "über",
-        "nicht", "auch", "noch", "wie", "was", "wer", "wo", "wann",
+        # ── German ──
+        "der", "die", "das", "ein", "eine", "einer", "eines", "einem", "einen",
+        "und", "ist", "sind", "war", "waren", "sein", "seine", "seiner", "seinem",
+        "hat", "haben", "hatte", "hatten", "wird", "werden", "wurde", "wurden",
+        "kann", "können", "konnte", "konnten", "muss", "müssen", "musste",
+        "soll", "sollen", "sollte", "darf", "dürfen", "mag", "mögen", "möchte",
+        "mit", "auf", "für", "von", "zu", "den", "dem", "des", "im", "am", "um",
+        "über", "unter", "vor", "nach", "bei", "aus", "an", "bis", "durch",
+        "gegen", "ohne", "zwischen", "neben", "seit", "während",
+        "nicht", "auch", "noch", "wie", "was", "wer", "wo", "wann", "warum",
+        "ich", "du", "er", "sie", "es", "wir", "ihr", "mein", "dein",
+        "kein", "keine", "keinem", "keinen", "keiner",
+        "aber", "oder", "doch", "schon", "mal", "eben", "halt", "ja", "nein",
+        "nur", "sehr", "dann", "wenn", "weil", "dass", "ob", "als",
+        "hier", "dort", "da", "so", "dieser", "diese", "dieses", "jeder", "jede",
+        # ── Spanish ──
+        "el", "la", "los", "las", "un", "una", "unos", "unas",
+        "de", "del", "en", "con", "por", "para", "al", "se",
+        "es", "son", "fue", "ser", "estar", "ha", "han", "hay",
+        "que", "no", "si", "yo", "tu", "él", "ella", "nosotros", "ellos", "ellas",
+        "su", "sus", "mi", "mis", "te", "le", "lo", "nos", "les",
+        "y", "o", "pero", "como", "más", "muy", "ya", "también", "entre",
+        "todo", "toda", "todos", "todas", "otro", "otra", "otros", "otras",
+        "este", "esta", "estos", "estas", "ese", "esa", "esos", "esas",
+        "cuando", "donde", "quien", "cual", "porque", "sin", "sobre", "hasta",
+        "aquí", "ahí", "allí", "así", "bien", "puede", "tiene", "hace",
+        # ── French ──
+        "le", "la", "les", "un", "une", "des", "du", "au", "aux",
+        "de", "en", "dans", "sur", "avec", "pour", "par", "ce", "se",
+        "est", "sont", "été", "être", "avoir", "fait", "faire",
+        "je", "tu", "il", "elle", "nous", "vous", "ils", "elles", "on",
+        "me", "te", "lui", "leur", "mon", "ma", "mes", "ton", "ta", "tes",
+        "son", "sa", "ses", "notre", "votre",
+        "et", "ou", "mais", "donc", "ni", "car", "que", "qui", "dont",
+        "ne", "pas", "plus", "très", "aussi", "bien", "tout", "tous", "toute",
+        "même", "autre", "autres", "cette", "ces", "quel", "quelle",
+        "quand", "où", "comment", "pourquoi", "si", "comme", "ici",
+        # ── Portuguese ──
+        "o", "a", "os", "as", "um", "uma", "uns", "umas",
+        "de", "do", "da", "dos", "das", "em", "no", "na", "nos", "nas",
+        "com", "por", "para", "ao", "aos", "à", "às", "se",
+        "é", "são", "foi", "ser", "estar", "tem", "há",
+        "eu", "tu", "ele", "ela", "nós", "vós", "eles", "elas",
+        "me", "te", "lhe", "seu", "sua", "seus", "suas", "meu", "minha",
+        "e", "ou", "mas", "que", "não", "sim", "muito", "mais", "também",
+        "todo", "toda", "todos", "todas", "este", "esta", "esse", "essa",
+        "como", "quando", "onde", "quem", "porque", "sem", "sobre", "até",
+        "bem", "pode", "isto", "isso", "aqui", "ali", "já", "ainda",
+        # ── Mandarin Chinese (pinyin + common characters) ──
+        "de", "le", "zai", "shi", "bu", "wo", "ni", "ta", "men",
+        "zhe", "na", "ge", "he", "you", "dou", "jiu", "ye", "hai",
+        "ba", "bei", "rang", "gei", "gen", "dui", "yao", "hui",
+        "ke", "yi", "mei", "hen", "guo", "dao", "shang", "xia",
+        "li", "zhong", "da", "xiao", "hao", "duo",
+        "的", "了", "在", "是", "我", "他", "她", "它", "们",
+        "这", "那", "个", "和", "有", "都", "就", "也", "还",
+        "不", "没", "很", "把", "被", "让", "给", "跟", "对",
+        "要", "会", "可以", "的话", "吗", "呢", "吧", "啊",
+        "上", "下", "里", "中", "大", "小", "好", "多",
+        # ── Hindi (Devanagari + romanized) ──
+        "ka", "ki", "ke", "ko", "hai", "hain", "tha", "thi", "the",
+        "me", "se", "ne", "par", "mein", "ye", "vo", "yah", "vah",
+        "aur", "ya", "lekin", "agar", "to", "bhi", "nahi", "nahin",
+        "kya", "kab", "kahan", "kaun", "kaise", "kyun", "kitna",
+        "ek", "do", "bahut", "kuch", "sab", "koi", "har",
+        "का", "की", "के", "को", "है", "हैं", "था", "थी", "थे",
+        "में", "से", "ने", "पर", "यह", "वह", "और", "या",
+        "लेकिन", "अगर", "तो", "भी", "नहीं", "क्या", "कब",
+        "कहाँ", "कौन", "कैसे", "क्यों", "कितना",
+        "एक", "बहुत", "कुछ", "सब", "कोई", "हर",
+        # ── Arabic ──
+        "في", "من", "على", "إلى", "عن", "مع", "هذا", "هذه",
+        "ذلك", "تلك", "هو", "هي", "هم", "هن", "أنا", "أنت",
+        "نحن", "أنتم", "الذي", "التي", "الذين", "اللاتي",
+        "و", "أو", "لكن", "ثم", "لا", "لم", "لن", "قد", "كان",
+        "كانت", "يكون", "تكون", "ما", "ماذا", "من", "أين", "متى",
+        "كيف", "لماذا", "هل", "إن", "أن", "كل", "بعض", "هنا",
+        "هناك", "جدا", "أيضا", "فقط", "حتى", "بين", "عند",
+        "al", "wa", "fi", "min", "ala", "ila", "an", "maa",
+        "hadha", "hadhihi", "huwa", "hiya", "hum", "ana", "anta",
+        "la", "lam", "lan", "qad", "kana", "ma", "aynu", "mata", "kayfa",
     })
 
     def search_fts(self, query: str, limit: int = 10) -> List[Tuple[str, float]]:
