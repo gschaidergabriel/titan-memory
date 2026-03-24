@@ -1,91 +1,119 @@
-# WE INTRODUCE TITAN THE Neural-Enhanced Conversational Memory System
+<p align="center">
+  <h1 align="center">TITAN</h1>
+  <p align="center">Conversational memory for AI agents.<br>Local. Trainable. Zero dependencies.</p>
+</p>
 
-**Titan** is a standalone, open-source Python library that gives any AI agent a living, neural-enhanced long-term memory. It replaces the brittle "dump everything into a vector DB" approach with something closer to how biological memory actually works.
+<p align="center">
+  <a href="https://github.com/gschaidergabriel/titan-memory/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python 3.10+"></a>
+  <a href="https://pytorch.org/"><img src="https://img.shields.io/badge/PyTorch-2.0%2B-ee4c2c.svg" alt="PyTorch 2.0+"></a>
+  <img src="https://img.shields.io/badge/dependencies-zero%20external-brightgreen.svg" alt="Zero External Dependencies">
+  <img src="https://img.shields.io/badge/languages-8-orange.svg" alt="8 Languages">
+</p>
 
-> *"Context is not text. Context is a time-weighted, uncertain graph structure that is observed through text."*
+---
 
-## Why Titan?
+Titan is a Python library that gives AI agents long-term memory with retrieval quality that improves over time. It stores memories as claims with confidence levels, retrieves them using keyword + semantic + graph fusion, and trains 10 small neural networks from usage patterns to get better at deciding what matters.
 
-Most agent memory systems treat memory as a retrieval problem. Titan treats it as a **living system** with 10 neural micro-networks that learn, forget, consolidate, and adapt.
+Everything runs locally. No API keys, no external servers, no vector database to manage. SQLite + PyTorch on CPU.
 
-**What makes Titan different:**
-- **Claims, not facts.** Every piece of information is a *claim* with a confidence level and origin. Nothing is treated as ground truth.
-- **Time-weighted decay.** Confidence halves every 7 days. Old memories fade unless they prove useful.
-- **Controlled forgetting.** Orphan nodes, low-confidence items, and stale data are pruned automatically. High-value memories graduate to permanent protection.
-- **10 neural micro-networks** (~303K params total, CPU-only) that learn from actual usage patterns.
-- **Tri-hybrid storage:** SQLite (deterministic facts) + Vector Store (semantic search) + Knowledge Graph (explicit relations).
-- **Bio-inspired retrieval** with Hopfield associative memory, spreading activation, and cross-attention re-ranking.
+```python
+from titan import Titan, TitanConfig
 
-## Architecture
+memory = Titan(TitanConfig(data_dir="./memory"))
 
-```
-                        ┌─────────────────────────────────────────────────────────┐
-                        │                    TITAN MEMORY                         │
-                        │                                                         │
-    text ──────────────►│  INGESTION PIPELINE (The Architect)                     │
-                        │  ├── Claim Extraction (regex, no LLM)                   │
-                        │  ├── Entity Recognition                                 │
-                        │  ├── Neural Cortex: MIS (importance), ET (emotion)      │
-                        │  ├── CraniMem Composite Utility Score                   │
-                        │  └── Interference Detection (ID network)                │
-                        │                                                         │
-                        │  TRI-HYBRID STORAGE                                     │
-                        │  ├── SQLite + FTS5 (The Ledger)                        │
-                        │  ├── Vector Store: all-MiniLM-L6-v2 (Semantic Field)   │
-                        │  └── Knowledge Graph (The Structure)                    │
-                        │                                                         │
-    query ─────────────►│  RETRIEVAL PIPELINE                                     │
-                        │  ├── Traditional: RRF + Graph Expansion (SYNAPSE)       │
-                        │  │   └── Neural Cortex: RWL (learned weights)          │
-                        │  └── Hippocampus (Neural):                              │
-                        │      ├── QUM: Query Understanding (38-dim features)     │
-                        │      ├── AMM: Hopfield Pattern Completion               │
-                        │      ├── CDM: Cross-Attention Re-Ranking               │
-                        │      └── RCM: Response Composition + Dedup             │
-                        │                                                         │
-                        │  CONSOLIDATION (Background)                             │
-                        │  ├── Neural Cortex train_cycle (6 networks)            │
-                        │  ├── Hippocampus train_cycle (4 networks)              │
-                        │  └── Maintenance: decay, prune, graduate               │
-                        └─────────────────────────────────────────────────────────┘
+memory.ingest("Alice is a backend engineer at Google.", origin="user")
+memory.ingest("The auth service runs on port 8080.", origin="user")
+
+results = memory.retrieve("Where does Alice work?")
+# [{'content': 'Alice is a backend engineer at Google.', 'confidence': 0.8, ...}]
+
+context = memory.get_context_string("Tell me about the auth service")
+# "[certain] The auth service runs on port 8080."
 ```
 
-## Neural Components
+## How It Works
 
-### Neural Cortex (~77K params)
+```mermaid
+flowchart LR
+    subgraph Ingest
+        A[Text] --> B[Claim Extraction<br><i>regex, no LLM</i>]
+        B --> C[Entity Recognition]
+        C --> D[Neural Scoring<br><i>importance + emotion</i>]
+        D --> E[Interference Check]
+    end
 
-| Module | Params | Purpose |
-|--------|--------|---------|
-| **MIS** — Memory Importance Scorer | ~1K | Learns which memories deserve high initial confidence |
-| **ET** — Emotional Tagger | ~13K | Tags memories with valence (positive/negative) and arousal |
-| **RWL** — Retrieval Weight Learner | ~200 | Learns optimal weights for RRF, confidence, recency, graph signals |
-| **AS** — Associative Strengthener | ~25K | Hebbian learning for edge confidence updates |
-| **CG** — Consolidation Gate | ~13K | Decides keep/compress/forget during consolidation |
-| **ID** — Interference Detector | ~25K | Detects contradicting memory pairs |
+    subgraph Store
+        E --> F[(SQLite + FTS5)]
+        E --> G[(Vector Store<br><i>all-MiniLM-L6-v2</i>)]
+        E --> H[(Knowledge Graph)]
+    end
 
-### Hippocampus (~226K params)
+    subgraph Retrieve
+        I[Query] --> J[FTS5 Keyword Search]
+        I --> K[Vector Similarity]
+        J --> L[RRF Rank Fusion]
+        K --> L
+        L --> M[Graph Expansion]
+        M --> N[Neural Re-ranking]
+        N --> O[Results]
+    end
 
-| Module | Params | Purpose |
-|--------|--------|---------|
-| **QUM** — Query Understanding | ~58K | Extracts intent, temporal, emotional, and expansion signals |
-| **AMM** — Associative Memory | ~89K | Modern Hopfield network with temporal binding and Hebbian gates |
-| **CDM** — Correlation Discovery | ~53K | Cross-attention re-ranker with causal chain detection |
-| **RCM** — Response Composer | ~26K | Token-efficient formatting, confidence calibration, deduplication |
+    subgraph Learn
+        P[Consolidation] --> Q[Train 10 Networks<br><i>from usage patterns</i>]
+        Q --> R[Maintenance<br><i>decay, prune, graduate</i>]
+    end
+```
 
-## Feature Comparison
+**Ingestion** extracts claims and entities via regex (no LLM needed), computes embeddings, and scores importance/emotion with two small neural networks. **Storage** writes to three layers: SQLite with FTS5 for keywords, a vector store for semantic search, and a knowledge graph for relationships. **Retrieval** fuses keyword and semantic rankings via Reciprocal Rank Fusion, expands through the graph, and applies learned neural weights. **Consolidation** periodically trains all networks from accumulated access patterns and prunes stale memories.
 
-| Feature | Titan | Mem0 | Letta | Graphiti | Zep |
-|---------|-------|------|-------|----------|-----|
-| Tri-hybrid storage (SQL + Vector + Graph) | Yes | No | Partial | Graph only | No |
-| Neural importance scoring | Yes (10 networks) | No | No | No | No |
-| Epistemological uncertainty (claims, not facts) | Yes | No | No | No | No |
-| Time-weighted confidence decay | Yes | No | No | No | No |
-| Controlled forgetting with graduation | Yes | Manual | No | No | Yes |
-| Bio-inspired retrieval (Hopfield, spreading activation) | Yes | No | No | No | No |
-| Counter-hypotheses | Yes | No | No | No | No |
-| Self-training consolidation | Yes | No | No | No | No |
-| Fully local, no API keys | Yes | No | Partial | No | No |
-| CPU-only neural inference (<20ms) | Yes | N/A | N/A | N/A | N/A |
+## What the Neural Networks Actually Do
+
+Titan has 10 small PyTorch networks (~303K parameters total) that run on CPU in <1ms per call. They start with rule-based defaults and gradually take over as they accumulate training data.
+
+```mermaid
+flowchart TB
+    subgraph cortex["Neural Cortex — 77K params"]
+        MIS["<b>MIS</b><br>Memory Importance<br><i>~1K params</i><br>Learns which memories<br>get retrieved later"]
+        ET["<b>ET</b><br>Emotional Tagger<br><i>~13K params</i><br>Tags valence + arousal<br>from embeddings"]
+        RWL["<b>RWL</b><br>Retrieval Weights<br><i>~200 params</i><br>Learns optimal signal<br>weights per query"]
+        AS["<b>AS</b><br>Associative Strengthener<br><i>~25K params</i><br>Hebbian learning on<br>graph edge confidence"]
+        CG["<b>CG</b><br>Consolidation Gate<br><i>~13K params</i><br>Decides keep / compress<br>/ forget per memory"]
+        ID["<b>ID</b><br>Interference Detector<br><i>~25K params</i><br>Detects contradicting<br>memory pairs"]
+    end
+
+    subgraph hippo["Hippocampus — 226K params"]
+        QUM["<b>QUM</b><br>Query Understanding<br><i>~58K params</i><br>Extracts intent, temporal<br>and emotional signals"]
+        AMM["<b>AMM</b><br>Associative Memory<br><i>~89K params</i><br>Hopfield network with<br>temporal binding"]
+        CDM["<b>CDM</b><br>Correlation Discovery<br><i>~53K params</i><br>Cross-attention<br>re-ranker"]
+        RCM["<b>RCM</b><br>Response Composer<br><i>~26K params</i><br>Dedup + compression<br>+ confidence calibration"]
+    end
+```
+
+**Cold start behavior:** All networks use a 4-phase warmup. Steps 0-50: 100% rule-based. Steps 50-150: 50/50 blend. Steps 150-300: 75% neural. Steps 300+: 95% neural. The system works from step zero and improves with use.
+
+**Training:** Networks train during consolidation cycles (configurable, default every 6 hours). MIS learns from access logs (which memories get retrieved). RWL learns from retrieval feedback (which weight combinations produce useful results). Training runs in <100ms on CPU.
+
+## Benchmarks
+
+> [!NOTE]
+> Measured on AMD Ryzen 9 7940HS, 24.4 GB RAM, CPU-only. Titan: 30 items, 20 queries, 3 runs averaged. Mem0: 200 items, 15 queries, local Qwen-3B. Graphiti/Letta could not run without their required infrastructure.
+
+| Metric | **Titan** | Mem0 v1.0.7 | Graphiti v0.28 | Letta v0.16 |
+|--------|-----------|-------------|----------------|-------------|
+| Precision@1 | **0.900** | 0.733 | needs Neo4j | needs server |
+| Precision@5 | **1.000** | 0.867 | " | " |
+| MRR | **0.942** | 0.800 | " | " |
+| Ingest/item | **28 ms** | 11,837 ms | " | " |
+| Retrieval P50 | 14 ms | **11 ms** | " | " |
+| RAM | **17 MB** | 93 MB | " | " |
+| Neural params | **77,580** | 0 | 0 | 0 |
+| Knowledge graph | **Yes** | No | Yes | No |
+| FTS keyword search | **Yes** | No | No | No |
+| Languages | **8** | 1 | 1 | 1 |
+| External deps | **None** | ChromaDB + LLM | Neo4j + LLM | Server + PostgreSQL |
+
+Titan is 430x faster on ingest because it uses regex extraction instead of LLM calls. Retrieval quality is higher because of multi-signal fusion (keywords + semantics + graph) rather than vector-only search. Mem0 is 1.3x faster on retrieval (single vector lookup vs. multi-path fusion). Full methodology and analysis: **[Benchmark Paper](docs/BENCHMARK.md)**.
 
 ## Installation
 
@@ -93,188 +121,121 @@ Most agent memory systems treat memory as a retrieval problem. Titan treats it a
 pip install titan-memory
 ```
 
-Or install from source:
-
 ```bash
+# Or from source
 git clone https://github.com/gschaidergabriel/titan-memory.git
 cd titan-memory
 pip install -e .
 ```
 
-**Requirements:** Python 3.10+, PyTorch 2.0+, sentence-transformers 2.2+
+> [!TIP]
+> Requirements: Python 3.10+, PyTorch 2.0+, sentence-transformers 2.2+. All run on CPU.
 
-## Quick Start
+## API
+
+### Core
 
 ```python
 from titan import Titan, TitanConfig
 
-# Initialize with custom data directory
-config = TitanConfig(data_dir="./my_agent_memory")
+config = TitanConfig(
+    data_dir="./memory",          # Where to store everything
+    vector_model="all-MiniLM-L6-v2",  # Embedding model
+    default_limit=5,              # Results per query
+    auto_maintenance=True,        # Hourly decay + pruning
+    auto_consolidation=False,     # Set True for automatic neural training
+    consolidation_interval_hours=6.0,
+)
 memory = Titan(config)
-
-# Ingest memories
-memory.ingest("The user's name is Alice and she likes Python.", origin="user")
-memory.ingest("Alice works at a startup in Berlin.", origin="user")
-
-# Retrieve
-results = memory.retrieve("What do we know about Alice?")
-for item in results:
-    print(f"[{item.get('confidence', 0):.2f}] {item['content']}")
-
-# Get formatted context for LLM injection
-context = memory.get_context_string("Tell me about Alice")
-print(context)
-
-# Stats
-print(memory.get_stats())
 ```
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `ingest(text, origin, confidence)` | `dict` | Store a memory. Returns claims, entities, topics. |
+| `retrieve(query, limit, context)` | `list[dict]` | Retrieve relevant memories. |
+| `get_context_string(query, limit)` | `str` | Formatted context block for LLM injection. |
+| `forget(node_id)` | `bool` | Remove a memory (if not protected). |
+| `protect(node_id)` | `bool` | Protect from automatic pruning. |
+| `consolidate()` | `dict` | Trigger neural training + maintenance. |
+| `get_stats()` | `dict` | Node, edge, vector, claim counts. |
+| `health_check()` | `dict` | System status. |
 
 ### Convenience Functions
 
 ```python
 from titan import remember, recall, get_context, forget, protect
 
-# Uses a global singleton (data in ~/.titan/data/)
-remember("The user prefers dark mode.")
+remember("The user prefers dark mode.")        # Global singleton, ~/.titan/data/
 results = recall("user preferences")
-context = get_context("What are the user's preferences?")
+context = get_context("What does the user like?")
 ```
-
-## API Reference
-
-### `TitanConfig`
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `data_dir` | `str` | `~/.titan/data` | Directory for all Titan data (DB, vectors, models) |
-| `vector_model` | `str` | `all-MiniLM-L6-v2` | SentenceTransformer model for embeddings |
-| `default_limit` | `int` | `5` | Default number of results to return |
-| `min_confidence` | `float` | `0.15` | Minimum effective confidence for retrieval |
-| `expand_graph` | `bool` | `True` | Enable graph expansion in retrieval |
-| `auto_maintenance` | `bool` | `True` | Run maintenance automatically (hourly) |
-| `auto_consolidation` | `bool` | `False` | Run neural training automatically |
-| `consolidation_interval_hours` | `float` | `6.0` | Hours between consolidation cycles |
-| `max_context_length` | `int` | `4000` | Maximum context string length |
-
-### `Titan`
-
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `ingest(text, origin, confidence)` | `dict` | Ingest text into memory. Returns claims, entities, topics. |
-| `retrieve(query, limit, context)` | `list[dict]` | Retrieve relevant memories. Uses Hippocampus if available. |
-| `get_context_string(query, limit)` | `str` | Get LLM-ready formatted context string. |
-| `forget(node_id)` | `bool` | Manually forget a memory (if not protected). |
-| `protect(node_id)` | `bool` | Protect a memory from automatic pruning. |
-| `unprotect(node_id)` | `bool` | Remove protection from a memory. |
-| `consolidate()` | `dict` | Manually trigger neural training cycle. |
-| `run_maintenance()` | `dict` | Manually trigger maintenance (decay, prune, graduate). |
-| `get_stats()` | `dict` | Get memory statistics. |
-| `health_check()` | `dict` | Check system health. |
-| `get_claims(entity)` | `list[dict]` | Get claims related to an entity. |
-| `get_related(node_id, relation)` | `list[dict]` | Get nodes related to a given node. |
-| `add_counter_hypothesis(claim_id, text)` | `bool` | Add counter-hypothesis to a claim. |
 
 ### Origin Types
 
-| Origin | Default Confidence | Description |
-|--------|--------------------|-------------|
-| `user` | 0.8 | User stated explicitly |
-| `code` | 0.95 | From code analysis |
-| `inference` | 0.5 | AI inference |
-| `observation` | 0.7 | Observed behavior |
-| `memory` | 0.6 | From memory recall |
+| Origin | Confidence | Use for |
+|--------|-----------|---------|
+| `user` | 0.8 | Things the user stated directly |
+| `code` | 0.95 | Facts from code analysis |
+| `observation` | 0.7 | Behavioral observations |
+| `inference` | 0.5 | AI-generated conclusions |
+| `memory` | 0.6 | Recalled from prior memory |
 
-## How the Neural Components Work
+## Design Decisions
 
-### Cold Start
+**Claims, not facts.** Every stored item is a claim with a confidence level and origin. Nothing is treated as ground truth. Confidence decays with a 7-day half-life. Old memories fade unless they prove useful (get accessed), in which case they graduate to permanent protection.
 
-All neural networks start in **cold start** mode with smoothstep blending:
+**Regex extraction, not LLM.** Ingestion uses pattern matching to extract entities and subject-predicate-object claims. This is less accurate than LLM extraction but 430x faster and requires no external model. The tradeoff is intentional: for agents that ingest continuously, speed matters more than extraction quality.
 
-1. **Bootstrap phase** (0-50 steps): Fully rule-based defaults. Neural outputs ignored.
-2. **Blending phase** (50-150 steps): 50/50 blend between neural and rule-based.
-3. **Maturing phase** (150-300 steps): 75% neural, 25% rule-based.
-4. **Mature phase** (300+ steps): 95% neural.
+**Three retrieval signals, not one.** FTS5 keyword search finds exact matches. Vector similarity finds semantic matches. The knowledge graph finds structural relationships. Reciprocal Rank Fusion combines all three rankings. This avoids the failure mode where vector-only search returns semantically similar but factually wrong results.
 
-This means Titan works perfectly from step zero -- it just gets better over time.
+**10 small networks, not 1 large one.** Each network has a single job (importance scoring, emotion tagging, retrieval weighting, etc.) and trains independently from its own data source. This means each network can reach maturity on different timescales, and a failure in one doesn't affect the others.
 
-### Consolidation
+## Multilingual Support
 
-When `consolidate()` is called (or runs automatically):
+FTS stop-word filtering, temporal detection, emotion detection, and negation detection support 8 languages:
 
-1. **Neural Cortex** trains on accumulated data:
-   - MIS learns which memories get retrieved (supervised on access logs)
-   - RWL learns optimal retrieval weights (REINFORCE-style from feedback)
-   - ET, AS, CG, ID training deferred until sufficient embedding data
+| | EN | DE | ES | FR | PT | ZH | HI | AR |
+|---|---|---|---|---|---|---|---|---|
+| Stop words | ~80 | ~70 | ~55 | ~50 | ~45 | ~45 | ~35 | ~35 |
+| Temporal | 25 | 22 | 19 | 16 | 16 | 26 | 26 | 24 |
+| Emotion | 27 | 23 | 22 | 22 | 22 | 23 | 21 | 23 |
+| Negation | 7 | 8 | 8 | 7 | 7 | 7 | 7 | 8 |
 
-2. **Hippocampus** trains on outcome signals:
-   - CDM trains on which results were useful (binary cross-entropy)
-   - RCM trains on deduplication detection (cosine similarity labels)
-
-3. **Maintenance** runs: decay confidence, prune orphans, graduate high-value memories.
-
-### Retrieval Pipeline
-
-1. **Traditional path**: FTS5 keyword search + Vector cosine similarity -> RRF fusion -> Neural Cortex RWL weighting -> SYNAPSE spreading activation
-2. **Hippocampus path** (when ready): QUM query understanding -> ANN + Hopfield cluster expansion -> CDM cross-attention re-ranking -> RCM response composition with deduplication
-
-The Hippocampus path is tried first; if unavailable (cold start, no vectors), falls back to traditional.
-
-## Benchmarks
-
-AMD Ryzen 9 7940HS, 24.4 GB RAM, CPU-only. Titan: 30 items, 20 queries, 3 runs averaged. Mem0: 200 items, 15 queries, local Qwen-3B LLM. Graphiti/Letta: could not run (require Neo4j / Letta server).
-
-| Metric | **Titan** | Mem0 | Graphiti | Letta |
-|--------|-----------|------|----------|-------|
-| **Precision@1** | **0.900** | 0.733 | N/A (needs Neo4j) | N/A (needs server) |
-| **Precision@5** | **1.000** | 0.867 | N/A | N/A |
-| **MRR** | **0.942** | 0.800 | N/A | N/A |
-| Ingest/item | **27.6 ms** | 11,837 ms | N/A | N/A |
-| Retrieval P50 | 14.1 ms | **10.5 ms** | N/A | N/A |
-| RAM delta | **16.9 MB** | 93.4 MB | N/A | N/A |
-| Neural params | **77,580** | 0 | 0 | 0 |
-| Knowledge Graph | **Yes** | No | Yes | No |
-| FTS5 | **Yes** | No | No | No |
-| Languages | **8** | 1 | 1 | 1 |
-| External deps | **None** | ChromaDB + LLM | Neo4j + LLM | Server + PostgreSQL |
-
-Titan is faster on ingest (430x), more accurate on retrieval (P@5 1.00 vs 0.87), uses less RAM (5.5x), and needs zero external infrastructure. Mem0's retrieval is 1.3x faster (vector-only search vs Titan's multi-signal fusion) but requires a full LLM for every ingest.
-
-See the full **[Benchmark Paper](docs/BENCHMARK.md)** for methodology, feature comparison matrix, and detailed analysis.
-
-## Data Directory Structure
-
-```
-~/.titan/data/
-├── titan.db              # SQLite: nodes, edges, events, claims, FTS5, training signals
-├── titan_vectors.npz     # Compressed vector embeddings
-├── titan_vector_ids.json # Node ID to vector index mapping
-├── hippocampus.db        # Hippocampus training logs
-└── models/
-    ├── titan_cortex.pt   # Neural Cortex checkpoint (6 networks)
-    └── titan_hippocampus.pt  # Hippocampus checkpoint (4 networks)
-```
+The embedding model (`all-MiniLM-L6-v2`) supports 100+ languages for semantic similarity.
 
 ## Framework Integrations
 
-Titan works with any LLM framework. Two universal patterns:
+Two universal patterns work with any LLM:
 
-1. **System prompt augmentation** -- inject `memory.get_context_string(query)` into the system message before each LLM call. Works with every model.
-2. **Tool-based** -- give the LLM `memory_store` / `memory_recall` tools and let it decide when to use them. Requires tool-calling support.
+1. **System prompt injection** -- call `memory.get_context_string(query)` before each LLM call and prepend the result to the system message.
+2. **Tool-based** -- give the LLM `memory_store` / `memory_recall` tools.
 
-| Framework | Pattern | Example | Guide |
-|-----------|---------|---------|-------|
-| **Claude API** (Anthropic SDK) | `tool_use` loop | [`examples/claude_api.py`](examples/claude_api.py) | [Guide](docs/INTEGRATIONS.md#claude-api-anthropic-sdk) |
-| **Ollama + Python** | System prompt + `[STORE:]` | [`examples/ollama_chat.py`](examples/ollama_chat.py) | [Guide](docs/INTEGRATIONS.md#ollama--python) |
-| **OpenAI-Compatible** (vLLM, LocalAI, Groq, etc.) | System prompt + tools | [`examples/openai_compatible.py`](examples/openai_compatible.py) | [Guide](docs/INTEGRATIONS.md#openai-compatible-apis) |
-| **LangChain** | BaseMemory / LCEL / AgentExecutor | [`examples/langchain_memory.py`](examples/langchain_memory.py) | [Guide](docs/INTEGRATIONS.md#langchain) |
-| **LlamaIndex** | MemoryBlock + Retriever | -- | [Guide](docs/INTEGRATIONS.md#llamaindex) |
-| **CrewAI** | `@tool` decorator | -- | [Guide](docs/INTEGRATIONS.md#crewai) |
-| **AutoGen v0.4** | Memory protocol subclass | -- | [Guide](docs/INTEGRATIONS.md#autogen-v04) |
-| **Pydantic AI** | deps injection + `@agent.tool` | -- | [Guide](docs/INTEGRATIONS.md#pydantic-ai) |
-| **Open Interpreter** | `custom_instructions` | -- | [Guide](docs/INTEGRATIONS.md#open-interpreter) |
+| Framework | Example | Guide |
+|-----------|---------|-------|
+| Claude API | [`examples/claude_api.py`](examples/claude_api.py) | [Guide](docs/INTEGRATIONS.md#claude-api-anthropic-sdk) |
+| Ollama | [`examples/ollama_chat.py`](examples/ollama_chat.py) | [Guide](docs/INTEGRATIONS.md#ollama--python) |
+| OpenAI-compatible | [`examples/openai_compatible.py`](examples/openai_compatible.py) | [Guide](docs/INTEGRATIONS.md#openai-compatible-apis) |
+| LangChain | [`examples/langchain_memory.py`](examples/langchain_memory.py) | [Guide](docs/INTEGRATIONS.md#langchain) |
+| LlamaIndex | -- | [Guide](docs/INTEGRATIONS.md#llamaindex) |
+| CrewAI | -- | [Guide](docs/INTEGRATIONS.md#crewai) |
+| AutoGen v0.4 | -- | [Guide](docs/INTEGRATIONS.md#autogen-v04) |
+| Pydantic AI | -- | [Guide](docs/INTEGRATIONS.md#pydantic-ai) |
 
-See the full **[Integration Guide](docs/INTEGRATIONS.md)** for complete code, gotchas, and install instructions.
+Full integration guide with copy-pasteable code: **[docs/INTEGRATIONS.md](docs/INTEGRATIONS.md)**
+
+## Data Storage
+
+```
+~/.titan/data/
+├── titan.db              # SQLite: nodes, edges, events, claims, FTS5 index
+├── titan_vectors.npz     # Compressed embeddings (384-dim per memory)
+├── titan_vector_ids.json # Node-to-vector mapping
+├── hippocampus.db        # Retrieval training logs
+└── models/
+    ├── titan_cortex.pt       # Cortex checkpoint (6 networks)
+    └── titan_hippocampus.pt  # Hippocampus checkpoint (4 networks)
+```
 
 ## License
 
-MIT License. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).
