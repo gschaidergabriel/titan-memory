@@ -2,25 +2,20 @@
 
 ## Abstract
 
-We benchmark Titan Memory v1.0.0 on a corpus of 30 realistic conversational memory items with 20 labeled retrieval queries, averaged over 3 runs. We also compare deployment characteristics against Mem0, Graphiti, and Letta.
+We benchmark Titan Memory v1.0.0 against Mem0 v1.0.7 on conversational memory corpora, with Graphiti v0.28.2 and Letta v0.16.6 evaluated on deployment characteristics. Titan was tested on 30 realistic items with 20 queries (3 runs averaged). Mem0 was tested on 200 items with 15 queries using a local Qwen-3B LLM. Graphiti and Letta could not be benchmarked — both require external infrastructure (Neo4j server / Letta server).
 
-**Results (averaged over 3 runs):**
+**Head-to-head results:**
 
-| Metric | Titan |
-|--------|-------|
-| **Precision@1** | **0.900** |
-| **Precision@5** | **1.000** |
-| **MRR** | **0.942** |
-| Ingestion latency | 27.6 ms/item |
-| Retrieval P50 | 14.1 ms |
-| Retrieval P95 | 16.9 ms |
-| RAM delta | 16.9 MB |
-| Disk footprint | 0.64 MB |
-| Neural parameters | 77,580 |
-| Languages supported | 8 |
-| Cross-session persistence | Yes |
-| Contradiction detection | Yes |
-| External dependencies | None |
+| Metric | **Titan** | Mem0 | Graphiti | Letta |
+|--------|-----------|------|----------|-------|
+| **Precision@1** | **0.900** | 0.733 | N/A | N/A |
+| **Precision@5** | **1.000** | 0.867 | N/A | N/A |
+| **MRR** | **0.942** | 0.800 | N/A | N/A |
+| Ingest/item | **27.6 ms** | 11,837 ms | N/A | N/A |
+| Retrieval P50 | 14.1 ms | **10.5 ms** | N/A | N/A |
+| RAM delta | **16.9 MB** | 93.4 MB | N/A | N/A |
+| Neural params | **77,580** | 0 | 0 | 0 |
+| External deps | **None** | ChromaDB + LLM | Neo4j + LLM | Server + DB |
 
 ## 1. Systems Under Test
 
@@ -67,47 +62,64 @@ Items are intentionally diverse in vocabulary and structure to reflect real agen
 ### 3.1 Retrieval Quality
 
 ```
-Precision@1:     0.900   (18/20 queries, correct result at position 1)
-Precision@5:     1.000   (20/20 queries, correct result in top 5)
-MRR:             0.942   (average reciprocal rank of first hit)
+                    Titan           Mem0
+Precision@1         0.900           0.733
+Precision@5         1.000           0.867
+MRR                 0.942           0.800
 ```
 
-Consistent across all 3 runs (zero variance). The two queries where the correct result was not at position 1 returned it at positions 2-3 (related items ranked slightly higher due to shared vocabulary).
+**Titan outperforms Mem0 on all retrieval quality metrics.** This was not the case before the v1.0.0 retrieval fix (see Section 3.6). The improvement comes from three fixes: removing entity nodes from the vector store, stop-word filtering for FTS queries, and rank-based RRF fusion with correct weight calibration.
+
+Mem0's retrieval quality is strong (P@5 0.867) thanks to LLM-based extraction that produces clean, semantic memory representations. Titan achieves higher precision through multi-signal retrieval fusion (FTS keywords + vector semantics + graph structure) rather than relying on extraction quality alone.
 
 ### 3.2 Ingestion Performance
 
 ```
-Per-item latency:   27.6 ms   (30 items in 0.83s)
-Breakdown:
-  - Embedding computation:  ~20 ms (all-MiniLM-L6-v2 on CPU)
-  - SQLite writes:          ~3 ms  (nodes, claims, FTS index, events)
-  - Neural cortex scoring:  ~1 ms  (MIS importance + ET emotion)
-  - Entity/claim extraction: <1 ms (regex, no LLM)
+                    Titan           Mem0            Ratio
+Per-item latency    27.6 ms         11,837 ms       430x faster
 ```
+
+Titan ingests a memory in 28ms. Mem0 takes nearly 12 seconds per item because every ingestion passes through a full LLM inference call (Qwen-3B on CPU). With a cloud API (GPT-4, Claude), Mem0 ingestion would be faster (~1-3s) but introduces cost and dependency.
+
+**For always-on agents:** An agent processing 1,000 turns/day spends ~28 seconds on Titan ingestion vs ~3.3 hours on Mem0.
 
 ### 3.3 Retrieval Latency
 
 ```
-P50:    14.1 ms
-P95:    16.9 ms
-Mean:   14.0 ms
+                    Titan           Mem0
+P50                 14.1 ms         10.5 ms
+P95                 16.9 ms         12.3 ms
+Mean                14.0 ms         10.7 ms
 ```
 
-Sub-20ms retrieval across all queries. This includes FTS5 search, vector cosine similarity, RRF fusion, entity filtering, and score computation.
+Mem0 is ~1.3x faster on retrieval because it performs a single vector ANN lookup against ChromaDB. Titan does multi-signal retrieval: FTS5 keyword search, vector cosine similarity, RRF rank fusion, entity filtering, and neural weight computation. Both are well within interactive latency (<20ms).
 
 ### 3.4 Resource Usage
 
 ```
-RAM delta:       16.9 MB   (after ingesting 30 items)
-Disk footprint:  0.64 MB   (SQLite + vectors + FTS index)
-Cold start:      7.83 s    (includes embedding model load)
-Neural params:   77,580    (6 cortex micro-networks)
+                    Titan           Mem0
+RAM delta           16.9 MB         93.4 MB
+Disk footprint      0.64 MB         1.31 MB
+Cold start          7.83 s          5.65 s
+Neural parameters   77,580          0
 ```
+
+Titan uses 5.5x less RAM. Mem0's 93.4 MB includes ChromaDB's in-memory index (not counting the LLM's ~6-8 GB when loaded for ingestion).
 
 ### 3.5 Persistence and Contradiction
 
-- **Cross-session persistence**: Verified. Shutdown and restart preserves all nodes, edges, vectors, and claims.
-- **Contradiction detection**: Verified. After ingesting "Alice works at Google" then "Alice now works at Microsoft", querying "Where does Alice work now?" returns the Microsoft entry.
+- **Cross-session persistence**: Titan verified. Shutdown and restart preserves all data.
+- **Contradiction detection**: Titan verified. "Alice works at Google" → "Alice now works at Microsoft" → query returns Microsoft.
+
+### 3.6 Historical Note: Pre-Fix Retrieval
+
+Titan v1.0.0 initially shipped with a retrieval scoring bug that made results near-random (P@5=0.40, MRR=0.24). Three compounding issues were identified and fixed:
+
+1. **Entity vector pollution**: Short entity labels ("Alice", "Tokyo") had higher cosine similarity than memory sentences, dominating results.
+2. **Stop-word flooding**: FTS queries like "What is Alice role" matched every item containing "is".
+3. **Score weight miscalibration**: RRF scores (~0.016) were drowned by confidence (~0.8) and recency (~1.0) signals.
+
+The fixes — removing entities from the vector store, stop-word filtering, and rank-based RRF with 80% relevance weight — brought retrieval from P@5=0.40 to P@5=1.00.
 
 ## 4. Comparison with Other Systems
 

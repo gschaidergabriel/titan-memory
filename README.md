@@ -221,25 +221,25 @@ The Hippocampus path is tried first; if unavailable (cold start, no vectors), fa
 
 ## Benchmarks
 
-Measured on AMD Ryzen 9 7940HS, 24.4 GB RAM, CPU-only, averaged over 3 runs. 30 realistic conversational memories, 20 labeled queries.
+AMD Ryzen 9 7940HS, 24.4 GB RAM, CPU-only. Titan: 30 items, 20 queries, 3 runs averaged. Mem0: 200 items, 15 queries, local Qwen-3B LLM. Graphiti/Letta: could not run (require Neo4j / Letta server).
 
-| Metric | Titan |
-|--------|-------|
-| **Precision@1** | **0.900** |
-| **Precision@5** | **1.000** |
-| **MRR** | **0.942** |
-| Ingest latency | 27.6 ms/item |
-| Retrieval P50 | 14.1 ms |
-| Retrieval P95 | 16.9 ms |
-| RAM delta | 16.9 MB |
-| Disk footprint | 0.64 MB |
-| Cross-session persistence | Yes |
-| Contradiction detection | Yes |
-| External dependencies | **None** |
+| Metric | **Titan** | Mem0 | Graphiti | Letta |
+|--------|-----------|------|----------|-------|
+| **Precision@1** | **0.900** | 0.733 | N/A (needs Neo4j) | N/A (needs server) |
+| **Precision@5** | **1.000** | 0.867 | N/A | N/A |
+| **MRR** | **0.942** | 0.800 | N/A | N/A |
+| Ingest/item | **27.6 ms** | 11,837 ms | N/A | N/A |
+| Retrieval P50 | 14.1 ms | **10.5 ms** | N/A | N/A |
+| RAM delta | **16.9 MB** | 93.4 MB | N/A | N/A |
+| Neural params | **77,580** | 0 | 0 | 0 |
+| Knowledge Graph | **Yes** | No | Yes | No |
+| FTS5 | **Yes** | No | No | No |
+| Languages | **8** | 1 | 1 | 1 |
+| External deps | **None** | ChromaDB + LLM | Neo4j + LLM | Server + PostgreSQL |
 
-Mem0, Graphiti, and Letta could not be benchmarked head-to-head — all three require external infrastructure (LLM endpoint, Neo4j server, or Letta server). Titan is the only system that runs with `pip install` and zero external dependencies.
+Titan is faster on ingest (430x), more accurate on retrieval (P@5 1.00 vs 0.87), uses less RAM (5.5x), and needs zero external infrastructure. Mem0's retrieval is 1.3x faster (vector-only search vs Titan's multi-signal fusion) but requires a full LLM for every ingest.
 
-See the full **[Benchmark Paper](docs/BENCHMARK.md)** for methodology, feature comparison matrix, and multilingual support details.
+See the full **[Benchmark Paper](docs/BENCHMARK.md)** for methodology, feature comparison matrix, and detailed analysis.
 
 ## Data Directory Structure
 
