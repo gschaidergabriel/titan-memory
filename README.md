@@ -1,6 +1,6 @@
 # WE INTRODUCE TITAN THE Neural-Enhanced Conversational Memory System
 
-**Titan** is a standalone, open-source Python library that gives any AI agent a living, neural-enhanced long-term memory. Extracted and adapted from [Project Frankenstein](https://github.com/gschaidergabriel/Project-Frankenstein) (76K+ lines, embodied desktop AI), Titan replaces the brittle "dump everything into a vector DB" approach with something closer to how biological memory actually works.
+**Titan** is a standalone, open-source Python library that gives any AI agent a living, neural-enhanced long-term memory. It replaces the brittle "dump everything into a vector DB" approach with something closer to how biological memory actually works.
 
 > *"Context is not text. Context is a time-weighted, uncertain graph structure that is observed through text."*
 
