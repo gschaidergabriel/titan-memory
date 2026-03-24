@@ -231,6 +231,23 @@ The Hippocampus path is tried first; if unavailable (cold start, no vectors), fa
 
 All neural inference runs on CPU. No GPU required.
 
+## Benchmarks
+
+Head-to-head comparison against Mem0 v1.0.7 on 200 conversational memory items, 15 labeled queries, CPU-only (AMD Ryzen 9 7940HS), same embedding model (`all-MiniLM-L6-v2`). Graphiti and Letta could not be benchmarked due to hard infrastructure requirements (Neo4j server, Letta server).
+
+| Metric | Titan | Mem0 (local Qwen-3B) |
+|--------|-------|----------------------|
+| **Ingest latency** | **51.5 ms/item** | 11,837 ms/item (230x slower) |
+| Retrieval P50 | 20.4 ms | **10.5 ms** |
+| **Precision@5** | 0.400 | **0.867** |
+| **MRR** | 0.244 | **0.800** |
+| RAM delta | **9.4 MB** | 93.4 MB |
+| External dependencies | **None** | ChromaDB + LLM API |
+
+**The tradeoff:** Titan uses deterministic regex extraction (fast, zero dependencies) while Mem0 uses full LLM inference for extraction (slow, better quality). For always-on local agents with continuous memory ingestion, Titan's 230x speed advantage and zero-dependency deployment are decisive. For infrequent memory storage with cloud API access, Mem0's extraction quality is superior.
+
+See the full **[Benchmark Paper](docs/BENCHMARK.md)** for methodology, analysis, and detailed discussion.
+
 ## Data Directory Structure
 
 ```
