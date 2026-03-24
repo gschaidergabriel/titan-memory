@@ -839,7 +839,7 @@ crew = Crew(
     verbose=True,
 )
 
-result = crew.kickoff(inputs={"project_name": "Project Frankenstein"})
+result = crew.kickoff(inputs={"project_name": "My AI Project"})
 ```
 
 **Gotchas:**
@@ -1025,7 +1025,7 @@ async def main():
     deps = TitanDeps(titan=titan, user_id="alice")
 
     result = await agent.run(
-        "My project is called Frankenstein. It's an embodied AI with 76k lines.",
+        "My project is a local AI assistant with long-term memory capabilities.",
         deps=deps,
     )
     print(result.data)

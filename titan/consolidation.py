@@ -5,9 +5,9 @@ Titan Consolidation Engine
 
 Self-contained training cycle for Titan's neural components.
 
-In the original Project Frankenstein, this is triggered by the dream daemon
-during consolidation phases. In standalone mode, this runs automatically on
-a configurable schedule via a background thread.
+When integrated into a larger system, consolidation can be triggered externally
+(e.g., during idle phases or a dream/sleep cycle). In standalone mode, this
+runs automatically on a configurable schedule via a background thread.
 
 Consolidation cycle:
 1. Neural Cortex train_cycle() -- trains MIS, ET, RWL, AS, CG, ID
