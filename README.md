@@ -265,12 +265,6 @@ Titan works with any LLM framework. Two universal patterns:
 
 See the full **[Integration Guide](docs/INTEGRATIONS.md)** for complete code, gotchas, and install instructions.
 
-## Origin
-
-Titan was extracted from [Project Frankenstein](https://github.com/gschaidergabriel/Project-Frankenstein), an embodied local AI desktop companion with 76K+ lines of Python. In Frank, Titan serves as the conversational memory backbone -- every conversation, observation, and inference flows through it.
-
-This standalone package removes all Frank-specific dependencies (invariant system, nucleus accumbens, E-PQ emotional model, SFT stabilizer, service topology) while preserving the complete neural architecture and tri-hybrid storage system.
-
 ## License
 
 MIT License. See [LICENSE](LICENSE).
