@@ -39,3 +39,4 @@ venv/
 .pytest_cache/
 .coverage
 htmlcov/
+openapi_letta.json
