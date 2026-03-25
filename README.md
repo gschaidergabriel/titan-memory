@@ -11,6 +11,10 @@
   <img src="https://img.shields.io/badge/languages-8-orange.svg" alt="8 Languages">
 </p>
 
+<p align="center">
+  <img src="assets/05_comparison.png" alt="Titan vs Mem0 on constrained hardware" width="100%">
+</p>
+
 ---
 
 ## The Problem
@@ -64,6 +68,13 @@ context = memory.get_context_string("Tell me about the auth service")
 
 ## How It Works
 
+<p align="center">
+  <img src="assets/04_architecture.png" alt="Titan Architecture" width="100%">
+</p>
+
+<details>
+<summary>Mermaid diagram (interactive)</summary>
+
 ```mermaid
 flowchart LR
     subgraph Ingest
@@ -94,6 +105,7 @@ flowchart LR
         Q --> R[Maintenance<br><i>decay, prune, graduate</i>]
     end
 ```
+</details>
 
 **Ingestion** extracts claims and entities via regex (no LLM needed), computes embeddings, and scores importance/emotion with two small neural networks. **Storage** writes to three layers: SQLite with FTS5 for keywords, a vector store for semantic search, and a knowledge graph for relationships. **Retrieval** fuses keyword and semantic rankings via Reciprocal Rank Fusion, expands through the graph, and applies learned neural weights. **Consolidation** periodically trains all networks from accumulated access patterns and prunes stale memories.
 
@@ -130,6 +142,11 @@ flowchart TB
 > Benchmarked for the target scenario: **local agents on consumer hardware (CPU-only, 8-16GB RAM) running 3B-8B models.** This is not a benchmark for cloud deployments with 70B+ models and unlimited API budgets. Titan is built for the machine that's already at capacity running your agent.
 
 **Hardware:** AMD Ryzen 9 7940HS, 24.4 GB RAM, CPU-only. Titan: 30 items, 20 queries, 3 runs averaged. Mem0: 200 items, 15 queries, local Qwen-3B via llama.cpp. Graphiti/Letta: could not run (require Neo4j / Letta server).
+
+<p align="center">
+  <img src="assets/01_ingest_speed.png" alt="Ingest Speed" width="48%">
+  <img src="assets/02_retrieval_quality.png" alt="Retrieval Quality" width="48%">
+</p>
 
 | Metric | **Titan** | Mem0 v1.0.7 | Graphiti v0.28 | Letta v0.16 |
 |--------|-----------|-------------|----------------|-------------|
