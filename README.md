@@ -148,24 +148,28 @@ flowchart TB
   <img src="assets/02_retrieval_quality.png" alt="Retrieval Quality" width="48%">
 </p>
 
+**Scalability (Titan, tested at 100 / 500 / 1000 items, 15 queries):**
+
+| Items | P@1 | P@5 | MRR | Ingest/item | Retrieval P50 | Disk |
+|-------|-----|-----|-----|-------------|---------------|------|
+| 100 | **1.000** | **1.000** | **1.000** | 166 ms | 12 ms | 1.4 MB |
+| 500 | **0.933** | **1.000** | **0.967** | 171 ms | 12 ms | 2.4 MB |
+| 1000 | **1.000** | **1.000** | **1.000** | 392 ms | 12 ms | 4.0 MB |
+
+Concurrent access (1 writer + 2 readers): 0 errors.
+
+**Head-to-head vs Mem0 (at 1000 items):**
+
 | Metric | **Titan** | Mem0 v1.0.7 | Graphiti v0.28 | Letta v0.16 |
 |--------|-----------|-------------|----------------|-------------|
-| Precision@1 | **0.900** | 0.733 | needs Neo4j | needs server |
-| Precision@5 | **1.000** | 0.867 | " | " |
-| MRR | **0.942** | 0.800 | " | " |
-| Ingest/item | **28 ms** | 11,837 ms | " | " |
-| Retrieval P50 | 14 ms | **11 ms** | " | " |
-| RAM overhead | **+17 MB** | +93 MB (+6GB LLM) | " | " |
-| Needs second LLM | **No** | Yes (for every ingest) | Yes | Yes |
-| Neural params | **77,580** | 0 | 0 | 0 |
-| Knowledge graph | **Yes** | No | Yes | No |
-| FTS keyword search | **Yes** | No | No | No |
-| Languages | **8** | 1 | 1 | 1 |
+| Precision@5 | **1.000** | 0.867 | needs Neo4j | needs server |
+| MRR | **1.000** | 0.800 | " | " |
+| Ingest/item | **392 ms** | 11,837 ms | " | " |
+| Retrieval P50 | 12 ms | **11 ms** | " | " |
+| Needs second LLM | **No** | Yes | Yes | Yes |
 | External deps | **None** | ChromaDB + LLM | Neo4j + LLM | Server + PostgreSQL |
 
-**Why this matters on 3B hardware:** Mem0's 11.8s per ingest isn't just slow — it means your Qwen-3B is busy doing memory extraction instead of responding to the user. On a single-model machine, memory operations and agent responses compete for the same compute. Titan's 28ms ingest runs between inference calls without the user noticing.
-
-Mem0 is 1.3x faster on pure retrieval (single vector lookup vs. Titan's multi-path fusion), but on constrained hardware the total system load is what matters, not isolated retrieval latency.
+**Why this matters on 3B hardware:** Mem0's 11.8s per ingest means your Qwen-3B is busy doing memory extraction instead of responding to the user. On a single-model machine, memory and inference compete for the same compute. Titan's ingest runs between calls without the user noticing.
 
 Full methodology: **[Benchmark Paper](docs/BENCHMARK.md)**.
 
