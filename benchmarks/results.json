@@ -1,28 +1,32 @@
 {
-  "titan": {
-    "hardware": {
-      "cpu": "AMD Ryzen 9 7940HS w/ Radeon 780M Graphics",
-      "ram_gb": 24.4,
-      "python": "3.12.3",
-      "torch": "2.5.0+cu124"
-    },
-    "timestamp": "2026-03-25T00:23:05",
-    "cold_start_s": 7.83,
-    "ram_delta_mb": 16.9,
-    "disk_mb": 0.64,
-    "ingest_per_item_ms": 27.6,
-    "retrieval_p50_ms": 14.1,
-    "retrieval_p95_ms": 16.9,
-    "retrieval_mean_ms": 14.0,
-    "precision_at_1": 0.9,
-    "precision_at_5": 1.0,
-    "mrr": 0.942,
-    "n_items": 30,
-    "n_queries": 20,
-    "runs": 3,
-    "neural_params": 77580,
-    "languages": 8,
-    "persistence": true,
-    "contradiction_finds_update": true
+  "100": {
+    "ingest_ms": 166.4,
+    "p50": 11.7,
+    "p95": 13.9,
+    "p1": 1.0,
+    "p5": 1.0,
+    "mrr": 1.0,
+    "ram_mb": 404.0,
+    "disk_mb": 1.35
+  },
+  "500": {
+    "ingest_ms": 171.2,
+    "p50": 12.4,
+    "p95": 15.8,
+    "p1": 0.933,
+    "p5": 1.0,
+    "mrr": 0.967,
+    "ram_mb": 66.2,
+    "disk_mb": 2.41
+  },
+  "1000": {
+    "ingest_ms": 391.5,
+    "p50": 12.4,
+    "p95": 15.2,
+    "p1": 1.0,
+    "p5": 1.0,
+    "mrr": 1.0,
+    "ram_mb": 77.5,
+    "disk_mb": 4.02
   }
 }

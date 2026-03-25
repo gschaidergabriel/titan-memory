@@ -46,7 +46,7 @@ class TitanConfig:
     # Retrieval
     default_limit: int = 5
     min_confidence: float = 0.15
-    expand_graph: bool = True
+    expand_graph: bool = False
 
     # Maintenance
     auto_maintenance: bool = True
@@ -226,17 +226,20 @@ class Titan:
         """
         limit = limit or self.config.default_limit
 
-        # Try Hippocampus neural retrieval first
+        # Try Hippocampus neural retrieval only when MATURE (300+ training steps).
+        # During cold start, the Hippocampus produces worse rankings than the
+        # traditional RRF path. Let it train before trusting it.
         if self._hippocampus:
             try:
-                if self._hippocampus.is_ready():
+                steps = getattr(self._hippocampus, '_total_steps', 0)
+                if self._hippocampus.is_ready() and steps >= 300:
                     result = self._hippocampus.retrieve(query, limit=limit, context=context or {})
                     if result:
                         return result
             except Exception as e:
                 LOG.debug("Hippocampus retrieval failed: %s", e)
 
-        # Fallback to traditional retrieval
+        # Traditional retrieval: FTS5 + Vector + RRF fusion
         items = self.retriever.retrieve(
             query, limit=limit, expand_graph=self.config.expand_graph
         )
@@ -251,7 +254,8 @@ class Titan:
 
         if self._hippocampus:
             try:
-                if self._hippocampus.is_ready():
+                steps = getattr(self._hippocampus, '_total_steps', 0)
+                if self._hippocampus.is_ready() and steps >= 300:
                     items = self._hippocampus.retrieve(query, limit=limit, context=context or {})
                     if items:
                         return self._hippocampus.build_context_string(items)

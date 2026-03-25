@@ -208,28 +208,44 @@ class ContextBuilder:
 
             content = node.metadata.get("full_text", node.label)
 
-            _weights = [0.7, 0.1, 0.1, 0.1]
+            # Scoring: relevance is the primary signal.
+            # Confidence/recency/graph are micro-tiebreakers (max 1% each).
+            # This ensures the ranking is driven by actual query-item match,
+            # not by metadata that is identical across all items.
+            tiebreaker = (
+                effective_confidence * 0.003 +
+                recency_score * 0.003 +
+                graph_score * 0.002
+            )
+
+            # Neural Cortex: only apply learned weights when MATURE (300+ steps).
+            # During cold start, the RWL network produces near-random weights
+            # that destroy the relevance ranking.
+            _cortex_boost = 0.0
             if _cortex:
                 try:
-                    _rwl_f = {
-                        "rrf": relevance, "conf": effective_confidence,
-                        "recency": recency_score, "graph": graph_score,
-                        "query_len": len(query.split()),
-                        "n_results": len(all_candidates),
-                        "valence": node.metadata.get("valence", 0.0),
-                        "arousal": node.metadata.get("arousal", 0.5),
-                    }
-                    _weights = _cortex.get_retrieval_weights(_rwl_f)
-                    _last_rwl_weights = _weights
+                    rwl_steps = getattr(_cortex, '_rwl_steps', 0)
+                    if rwl_steps >= 300:
+                        _rwl_f = {
+                            "rrf": relevance, "conf": effective_confidence,
+                            "recency": recency_score, "graph": graph_score,
+                            "query_len": len(query.split()),
+                            "n_results": len(all_candidates),
+                            "valence": node.metadata.get("valence", 0.0),
+                            "arousal": node.metadata.get("arousal", 0.5),
+                        }
+                        _weights = _cortex.get_retrieval_weights(_rwl_f)
+                        _last_rwl_weights = _weights
+                        # Cortex re-weights the tiebreaker portion only
+                        tiebreaker = (
+                            effective_confidence * _weights[1] * 0.05 +
+                            recency_score * _weights[2] * 0.05 +
+                            graph_score * _weights[3] * 0.05
+                        )
                 except Exception:
                     pass
 
-            final_score = (
-                relevance * _weights[0] +
-                effective_confidence * _weights[1] +
-                recency_score * _weights[2] +
-                graph_score * _weights[3]
-            )
+            final_score = relevance + tiebreaker
 
             items.append(RetrievedItem(
                 node_id=node_id, label=node.label,
