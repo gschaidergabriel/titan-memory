@@ -169,6 +169,19 @@ Concurrent access (1 writer + 2 readers): 0 errors.
 | Needs second LLM | **No** | Yes | Yes | Yes |
 | External deps | **None** | ChromaDB + LLM | Neo4j + LLM | Server + PostgreSQL |
 
+**Extended metrics (500 items, 15 queries):**
+
+| Metric | Score |
+|--------|-------|
+| nDCG@5 | 0.978 |
+| Recall@1 | 1.000 |
+| Recall@5 | 0.960 |
+| Contradiction handling | 7/10 (70%) |
+| Long conversation (200 turns, recall early facts) | P@5 = 0.875 |
+| Concurrent (1 writer + 2 readers) | 0 errors |
+| Write throughput | 8.8 items/sec |
+| Memory growth (1000 items) | +77 MB RAM, 3.6 MB disk |
+
 **Why this matters on 3B hardware:** Mem0's 11.8s per ingest means your Qwen-3B is busy doing memory extraction instead of responding to the user. On a single-model machine, memory and inference compete for the same compute. Titan's ingest runs between calls without the user noticing.
 
 Full methodology: **[Benchmark Paper](docs/BENCHMARK.md)**.

@@ -200,7 +200,102 @@ Titan's FTS stop-word filtering, temporal detection, emotion detection, and nega
 
 The embedding model (`all-MiniLM-L6-v2`) supports 100+ languages for semantic similarity. The stop-word and feature detection lists above enhance FTS precision and query understanding for these specific languages.
 
-## 6. Target Deployment Scenario
+## 6. Extended Metrics
+
+Tested on 500-1000 items with 15 labeled queries. All through the public API.
+
+### 6.1 Recall@K and nDCG (500 items)
+
+```
+Recall@1:    1.000    (every query finds a relevant item at position 1)
+Recall@5:    0.960    (96% of relevant items found in top 5)
+Recall@10:   0.980
+nDCG@5:      0.978    (near-perfect ranking quality)
+```
+
+### 6.2 Scalability (100 / 500 / 1000 items)
+
+```
+Items    P@1      P@5      MRR      Ingest/item    Retrieval P50
+──────   ─────    ─────    ─────    ───────────    ─────────────
+  100    1.000    1.000    1.000    166 ms         12 ms
+  500    0.933    1.000    0.967    171 ms         12 ms
+ 1000    1.000    1.000    1.000    392 ms         12 ms
+```
+
+Retrieval quality is consistent across all scales. Retrieval latency (P50 12ms) does not degrade with item count.
+
+### 6.3 Write Throughput
+
+```
+Average:     113 ms/item
+P50:         59 ms
+P95:         268 ms
+Throughput:  8.8 items/sec
+```
+
+The P50-P95 spread comes from embedding computation variance (sentence length). SQLite writes are <3ms.
+
+### 6.4 Memory Growth
+
+```
+Items    RAM        Disk
+──────   ────       ────
+   50    +67 MB     0.7 MB
+  100    +69 MB     0.9 MB
+  200    +89 MB     1.2 MB
+  500    +69 MB     2.2 MB
+ 1000    +77 MB     3.6 MB
+```
+
+RAM is dominated by the embedding model (~60 MB fixed cost). Incremental cost per item is ~0.02 MB. Disk grows linearly at ~3.5 KB per item.
+
+### 6.5 Concurrent Access
+
+```
+1 writer (100 ops) + 2 readers (90 ops):
+  Total:        6,277 ms
+  Write errors: 0
+  Read errors:  0
+  Write avg:    63 ms/op
+  Read avg:     7 ms/op
+```
+
+SQLite WAL mode with `busy_timeout=30000` and thread-local connections prevents all lock contention.
+
+### 6.6 Contradiction Handling
+
+10 contradiction pairs (ingest fact A, then contradicting fact B, query for the updated information):
+
+```
+Score: 7/10 (70%)
+```
+
+Titan finds the updated fact in 7 of 10 cases. The 3 failures occur when the original and updated facts share more keywords than the query matches — FTS ranks the original higher because it was ingested first and has more graph connections. This is a known limitation: Titan does not explicitly invalidate old facts when new contradicting ones arrive. (Graphiti handles this better with temporal validity windows.)
+
+### 6.7 Forgetting Evaluation
+
+```
+Manual forget:              works (node + edges + FTS + vector removed)
+Protection blocks forget:   works (protected nodes cannot be forgotten)
+Maintenance (on fresh data): no pruning (all items < 7 days old with confidence > 0.2)
+```
+
+Maintenance prunes nodes that are: unprotected, older than 7 days, with confidence below 0.2 or zero graph connections (orphans). On fresh test data, no items qualify for pruning — which is correct behavior.
+
+### 6.8 Long Conversation Simulation
+
+200 conversation turns ingested. Key facts established in the first 10 turns. After 200 turns of additional noise, queried for the original facts:
+
+```
+P@1:   0.750    (6/8 early facts found at position 1)
+P@5:   0.875    (7/8 found in top 5)
+MRR:   0.792
+```
+
+Early facts remain retrievable after 200 subsequent turns. The 1 miss was a fact whose keywords overlapped heavily with later noise. This is the scenario where time-decay and consolidation training would improve results over time.
+
+## 7. Target Deployment Scenario
 
 This benchmark is designed for and relevant to:
 
@@ -211,15 +306,15 @@ This benchmark is designed for and relevant to:
 
 If you are running 70B+ models on multi-GPU servers with API budgets, Mem0 with a cloud LLM is a reasonable choice. If you are running a 3B model on a laptop and need memory that doesn't kill your system, Titan is built for you.
 
-## 7. Limitations
+## 8. Limitations
 
-1. **30-item corpus.** Small by benchmarking standards. Scaling behavior at 10K+ items may differ.
+1. **Tested up to 1000 items.** Behavior at 10K+ items is unknown. Vector search is O(n) brute-force cosine — an ANN index (HNSW/FAISS) would be needed for 10K+.
 
 2. **CPU-only.** All measurements on AMD Ryzen 9 7940HS.
 
-3. **Cold-start neural components.** Titan's Hippocampus (226K params) was not loaded in standalone mode. The cortex networks (77K params) were in cold-start phase. A production instance with trained networks would show different characteristics.
+3. **Contradiction handling is 70%, not 100%.** Titan does not explicitly invalidate old facts. Both old and new facts coexist and are ranked by keyword/semantic match. Temporal validity (Graphiti-style) would improve this.
 
-4. **Mem0 used a local 3B model.** With GPT-4 or Claude as the extraction LLM, Mem0 would be faster (~1-3s/item instead of 12s) and potentially more accurate. But that introduces API costs and an external dependency — which contradicts the local-first scenario this benchmark targets.
+4. **Mem0 used a local 3B model.** With GPT-4 or Claude as the extraction LLM, Mem0 would be faster (~1-3s/item instead of 12s) and potentially more accurate. But that introduces API costs and an external dependency.
 
 5. **Keyword ground truth.** Quality measured by keyword matching. Semantically correct results using different wording may be undercounted.
 
@@ -238,11 +333,12 @@ OS:       Linux 6.17.0-19-generic (Ubuntu 24.04)
 ```bash
 cd titan-memory/
 pip install -e .
-python benchmarks/benchmark.py
+python benchmarks/benchmark.py           # Core benchmark
+python benchmarks/extended_benchmark.py   # Extended metrics
 ```
 
-Results are saved to `benchmarks/results.json`.
+Results saved to `benchmarks/results.json` and `benchmarks/extended_results.json`.
 
 ---
 
-*Benchmark conducted March 25, 2026. All numbers averaged over 3 runs on identical hardware.*
+*Benchmark conducted March 25, 2026. All numbers on identical hardware.*

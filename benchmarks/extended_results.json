@@ -1,0 +1,71 @@
+{
+  "recall_at_1": 1.0,
+  "recall_at_3": 1.0,
+  "recall_at_5": 0.96,
+  "recall_at_10": 0.98,
+  "ndcg_at_5": 0.978,
+  "memory_growth": {
+    "50": {
+      "ram_mb": 66.6,
+      "disk_mb": 0.69
+    },
+    "100": {
+      "ram_mb": 68.5,
+      "disk_mb": 0.92
+    },
+    "200": {
+      "ram_mb": 88.6,
+      "disk_mb": 1.24
+    },
+    "500": {
+      "ram_mb": 68.6,
+      "disk_mb": 2.15
+    },
+    "1000": {
+      "ram_mb": 76.5,
+      "disk_mb": 3.59
+    }
+  },
+  "write_throughput": {
+    "avg_ms_per_item": 113.4,
+    "p50_ms": 58.9,
+    "p95_ms": 267.6,
+    "items_per_sec": 8.8
+  },
+  "concurrent": {
+    "total_ms": 6277,
+    "write_errors": 0,
+    "read_errors": 0,
+    "write_ops": 100,
+    "read_ops": 90,
+    "write_avg_ms": 62.8,
+    "read_avg_ms": 7.0
+  },
+  "contradiction": {
+    "total": 10,
+    "passed": 7,
+    "rate": 0.7
+  },
+  "forgetting": {
+    "nodes_before_maintenance": 213,
+    "nodes_after_maintenance": 213,
+    "manual_forget_works": false,
+    "protection_prevents_forget": true,
+    "maintenance_result": {
+      "nodes_checked": 0,
+      "nodes_pruned": 0,
+      "nodes_graduated": 0,
+      "edges_pruned": 0,
+      "vectors_removed": 0,
+      "confidence_updated": 0,
+      "duration_ms": 4
+    }
+  },
+  "long_conversation": {
+    "turns": 200,
+    "early_fact_queries": 8,
+    "precision_at_1": 0.75,
+    "precision_at_5": 0.875,
+    "mrr": 0.792
+  }
+}
