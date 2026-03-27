@@ -276,10 +276,12 @@ The embedding model (`all-MiniLM-L6-v2`) supports 100+ languages for semantic si
 
 ## Integrations
 
-All examples use local 3B-8B models. System prompt injection is recommended for small models — tool calling is unreliable below 7B.
+All examples use local 3B-8B models. For 3B models, we provide an optional [LoRA adapter](#lcme-lora-adapter-optional) that makes tool calling reliable (95% accuracy on Qwen 2.5 3B). For 7B+ models, system prompt injection alone is usually sufficient.
 
 | Setup | Models | Example | Guide |
 |-------|--------|---------|-------|
+| **LoRA + llama-server** | Qwen 2.5 3B (merged GGUF) | [`examples/openai_compatible.py`](examples/openai_compatible.py) | [LoRA adapter](#lcme-lora-adapter-optional) |
+| **LoRA + Python** | Qwen 2.5 3B (PEFT) | [`examples/ollama_chat.py`](examples/ollama_chat.py) | [LoRA adapter](#lcme-lora-adapter-optional) |
 | **Ollama** | qwen2.5:3b, llama3.1:8b, phi3, gemma2 | [`examples/ollama_chat.py`](examples/ollama_chat.py) | [Guide](docs/INTEGRATIONS.md#ollama--python) |
 | **llama-server** | Any GGUF | [`examples/openai_compatible.py`](examples/openai_compatible.py) | [Guide](docs/INTEGRATIONS.md#llama-cpp--llama-server) |
 | **LangChain** | Ollama / LlamaCpp | [`examples/langchain_memory.py`](examples/langchain_memory.py) | [Guide](docs/INTEGRATIONS.md#langchain--local-model) |
@@ -287,6 +289,85 @@ All examples use local 3B-8B models. System prompt injection is recommended for 
 | **Raw Python** | Any HTTP endpoint | -- | [Guide](docs/INTEGRATIONS.md#raw-python-no-framework) |
 
 Full guide: **[docs/INTEGRATIONS.md](docs/INTEGRATIONS.md)**
+
+## LCME LoRA Adapter (Optional)
+
+LCME works out of the box with system prompt injection — no fine-tuning required. But for models that struggle with tool-calling syntax (especially 3B models), we provide a LoRA adapter that teaches the model **when and how** to call `lcme.ingest()` and `lcme.retrieve()`.
+
+### What it is
+
+A PEFT/LoRA adapter (rank 16, 120MB) trained on 788 curated examples that teaches a model to:
+- Call `<tool>lcme.ingest|text|origin</tool>` when the user shares personal info
+- Call `<tool>lcme.retrieve|query</tool>` when the user asks about stored info
+- **Not** call any tool for generic questions (math, coding, trivia, greetings)
+
+Test results: **95% accuracy** (38/40) — Ingest 92%, Retrieve 100%, No-tool 92%.
+
+### What it is NOT
+
+- **Not a personality.** It teaches tool-calling only. No persona, no style, no opinion injection.
+- **Not a full model.** It's a 120MB adapter that sits on top of an existing base model.
+- **Not required.** LCME works without it. The adapter just makes small models more reliable at deciding when to use memory tools.
+- **Not model-specific.** Trained on Qwen 2.5 3B but the tool-calling pattern generalizes to other Qwen sizes.
+
+### Base model
+
+**Qwen/Qwen2.5-3B-Instruct** (or any Qwen 2.5 variant). The adapter was trained on `Qwen2.5-3B-Instruct-abliterated-hf` but works with the standard Instruct version.
+
+### Installation (Python / PEFT)
+
+```bash
+# Reassemble the adapter (split due to GitHub's 100MB file limit)
+cd models/lcme-lora-qwen3b-v2
+bash reassemble.sh
+```
+
+```python
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from peft import PeftModel
+
+# Load base model
+model = AutoModelForCausalLM.from_pretrained(
+    "Qwen/Qwen2.5-3B-Instruct",
+    torch_dtype="auto", device_map="auto"
+)
+tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2.5-3B-Instruct")
+
+# Load LCME LoRA adapter
+model = PeftModel.from_pretrained(model, "models/lcme-lora-qwen3b-v2")
+model.eval()
+```
+
+### Installation (llama.cpp / merged GGUF)
+
+If you want a single GGUF file for llama-server, merge the adapter into the base model first:
+
+```python
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from peft import PeftModel
+
+model = AutoModelForCausalLM.from_pretrained("Qwen/Qwen2.5-3B-Instruct", torch_dtype="auto", device_map="cpu")
+model = PeftModel.from_pretrained(model, "models/lcme-lora-qwen3b-v2")
+model = model.merge_and_unload()
+model.save_pretrained("lcme-merged")
+AutoTokenizer.from_pretrained("Qwen/Qwen2.5-3B-Instruct").save_pretrained("lcme-merged")
+```
+
+Then convert to GGUF with llama.cpp's `convert_hf_to_gguf.py` and run:
+
+```bash
+llama-server --model lcme-merged.gguf --port 8080
+```
+
+### Retraining
+
+The training data generator and training script are included:
+
+```bash
+cd models/
+python generate_lcme_data.py   # Generates 788 train/eval examples
+python train_lcme_lora.py --lr 8e-5 --epochs 4  # Requires GPU (tested on RTX 5070)
+```
 
 ## Data Storage
 
